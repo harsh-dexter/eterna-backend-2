@@ -24,15 +24,25 @@ export const processOrder = async (job: Job<OrderJobData>) => {
         return;
     }
 
+    // Fetch current logs first or maintain a local copy since we are in a sequence
+    // But since we just fetched 'order' above, we can use it if we update it locally.
+    // However, to be safe and stateless, let's read-update-write or just assume we append.
+    // Actually, since we are the only writer, we can just append to the order object we fetched?
+    // No, we need to persist it.
+    
+    let executionLogs = (order.execution_logs as any[]) || [];
+    // Safety check if it's corrupted
+    if (!Array.isArray(executionLogs)) executionLogs = [];
+
     const log = async (status: OrderStatus, message: string) => {
         const entry = { status, timestamp: new Date().toISOString(), message };
+        executionLogs.push(entry);
+        
         await prisma.order.update({
             where: { id: orderId },
             data: {
                 status,
-                execution_logs: {
-                    push: entry,
-                },
+                execution_logs: executionLogs,
             },
         });
 
@@ -58,14 +68,15 @@ export const processOrder = async (job: Job<OrderJobData>) => {
         const result = await router.executeSwap(quote);
 
         // 5. Confirmed
+        const confirmEntry = { status: OrderStatus.CONFIRMED, timestamp: new Date().toISOString(), message: `Swap confirmed. Final Price: ${result.finalPrice}` };
+        executionLogs.push(confirmEntry);
+        
         await prisma.order.update({
             where: { id: orderId },
             data: {
                 status: OrderStatus.CONFIRMED,
                 tx_hash: result.txHash,
-                execution_logs: {
-                    push: { status: OrderStatus.CONFIRMED, timestamp: new Date().toISOString(), message: `Swap confirmed. Final Price: ${result.finalPrice}` },
-                },
+                execution_logs: executionLogs,
             },
         });
         await redisPublisher.publish('order-updates', JSON.stringify({
@@ -102,15 +113,19 @@ export const startWorker = () => {
         if (job && job.data && job.data.orderId) {
              const { orderId } = job.data as OrderJobData;
              try {
+                const order = await prisma.order.findUnique({ where: { id: orderId } });
+                let logs = (order?.execution_logs as any[]) || [];
+                if (!Array.isArray(logs)) logs = [];
+
                 // Mark as FAILED in DB
                 const entry = { status: OrderStatus.FAILED, timestamp: new Date().toISOString(), message: `Order failed after retries: ${err.message}` };
+                logs.push(entry);
+
                 await prisma.order.update({
                     where: { id: orderId },
                     data: {
                         status: OrderStatus.FAILED,
-                        execution_logs: {
-                            push: entry
-                        }
+                        execution_logs: logs
                     }
                 });
                 
