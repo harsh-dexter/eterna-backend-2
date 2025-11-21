@@ -3,18 +3,8 @@ dotenv.config();
 
 import { buildServer } from './api/server';
 import { startWorker } from './workers/orderWorker';
-import { redis } from './infrastructure/redis';
 
 const start = async () => {
-    // Configure Redis (Silence BullMQ warning if possible)
-    try {
-        await redis.config('SET', 'maxmemory-policy', 'noeviction');
-        console.log('Successfully set Redis maxmemory-policy to noeviction');
-    } catch (err: any) {
-        console.warn(`Warning: Could not set Redis eviction policy: ${err.message}`);
-        console.warn('Ensure your Redis instance is configured with "noeviction" to avoid job loss.');
-    }
-
     // Start Worker
     startWorker();
 
