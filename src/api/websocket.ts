@@ -14,10 +14,14 @@ export const websocketRoutes = async (fastify: FastifyInstance) => {
         try {
             const order = await prisma.order.findUnique({ where: { id: orderId } });
             if (order && order.execution_logs) {
-                const logs = order.execution_logs as any[];
-                logs.forEach(log => {
-                    socket.send(JSON.stringify({ orderId, ...log }));
-                });
+                const logs = order.execution_logs;
+                if (Array.isArray(logs)) {
+                    logs.forEach((log: any) => {
+                        socket.send(JSON.stringify({ orderId, ...log }));
+                    });
+                } else {
+                    console.warn(`Order ${orderId} logs is not an array:`, logs);
+                }
             }
         } catch (error) {
             console.error('Error fetching order history', error);
