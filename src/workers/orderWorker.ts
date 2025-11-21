@@ -1,10 +1,10 @@
 import { Job } from 'bullmq';
-import { PrismaClient, OrderStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 import { createWorker } from '../infrastructure/queue';
 import { MockDexRouter, SlippageError } from '../domain/MockDexRouter';
 import { redisPublisher } from '../infrastructure/redis';
+import { prisma } from '../infrastructure/db';
 
-const prisma = new PrismaClient();
 const router = new MockDexRouter();
 
 interface OrderJobData {

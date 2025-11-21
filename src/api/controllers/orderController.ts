@@ -1,9 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { PrismaClient } from '@prisma/client';
 import { orderQueue } from '../../infrastructure/queue';
+import { prisma } from '../../infrastructure/db';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 const orderSchema = z.object({
     input_token: z.string(),

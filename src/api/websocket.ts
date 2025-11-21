@@ -1,9 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { redisSubscriber } from '../infrastructure/redis';
 import { WebSocket } from 'ws';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../infrastructure/db';
 
 export const websocketRoutes = async (fastify: FastifyInstance) => {
     fastify.get('/orders/:orderId', { websocket: true }, async (socket: WebSocket, req: any) => {
